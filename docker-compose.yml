@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    container_name: postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "7421:5432"
+
+  sqlxmigrator:
+    image: ghcr.io/bizkey/sqlxmigrator/sqlxmigrator:latest
+    pull_policy: always
+    container_name: sqlxmigrator
+    env_file:
+      - .env
+    volumes:
+      - ./migrations:/migrations
+    
+# sudo docker compose run --rm --remove-orphans sqlxmigrator sqlx

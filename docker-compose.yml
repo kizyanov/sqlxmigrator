@@ -8,9 +8,13 @@ services:
     ports:
       - "7421:5432"
 
-  sqlx:
-    build: .
+  sqlxmigrator:
+    image: ghcr.io/bizkey/sqlxmigrator/sqlxmigrator:latest
+    pull_policy: always
+    container_name: sqlxmigrator
     env_file:
       - .env
     volumes:
       - ./migrations:/migrations
+    
+# sudo docker compose run --rm --remove-orphans sqlxmigrator sqlx

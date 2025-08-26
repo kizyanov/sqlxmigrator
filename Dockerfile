@@ -1,37 +1,19 @@
-# Build stage
-FROM rust:1.89.0-alpine3.22 as builder
+# Используем официальный образ Rust как базовый
+FROM rust:1.89.0-alpine3.22 AS builder
 
-# Устанавливаем зависимости для сборки
 RUN apk add --no-cache musl-dev openssl-dev pkgconfig openssl-libs-static
 
-WORKDIR /app
+# Устанавливаем sqlx-cli через cargo
+RUN cargo install sqlx-cli --no-default-features --features postgres
 
-# Копируем файлы зависимостей для кэширования
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release
-
-# Копируем реальный код и пересобираем
-COPY src ./src
-RUN touch src/main.rs && cargo build --release
-
-# Runtime stage
+# Убираем ненужные зависимости, делаем образ легче
 FROM alpine:3.22
 
-# Устанавливаем runtime зависимости
-RUN apk add --no-cache libgcc openssl ca-certificates
+# Копируем только бинарник sqlx-cli
+COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/sqlx
 
-WORKDIR /app
+# Проверка, что sqlx работает
+RUN sqlx --version
 
-# Копируем бинарник
-COPY --from=builder /app/target/release/sqlxmigrator /app/
-
-# Даем права на выполнение
-RUN chmod +x /app/sqlxmigrator
-
-# Создаем пользователя для безопасности
-RUN adduser -D -u 1000 myuser
-USER myuser
-
-# Токен будет передан через .env файл
-CMD ["/app/sqlxmigrator"]
+# Команда по умолчанию — показать help
+CMD ["sqlx", "--help"]

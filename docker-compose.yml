@@ -1,4 +1,6 @@
 services:
+  # Локальная БД для автономного режима (не обязательна: рабочая БД cryptodb
+  # поднимается compose-проектом cryptodb — см. сеть cryptodb ниже).
   postgres:
     image: postgres:17.6-alpine
     container_name: postgres
@@ -14,7 +16,26 @@ services:
     container_name: sqlxmigrator
     env_file:
       - .env
+    environment:
+      # Внутри docker-сети 127.0.0.1 — это сам контейнер обёртки, поэтому к БД
+      # ходим по имени контейнера в общей сети (внутренний порт 5432, а не
+      # проброшенный на хост 5433).
+      DATABASE_URL: postgres://cryptodb:changeme@cryptodb-postgres:5432/cryptodb
     volumes:
-      - ./migrations:/migrations
-    
-# sudo docker compose run --rm --remove-orphans sqlxmigrator sqlx
+      # Монтируем каталог, где лежат сами *.sql-миграции (файлы во вложенной
+      # migrations/migrations), в дефолтный источник sqlx — /migrations.
+      - ./migrations/migrations:/migrations
+    networks:
+      - default
+      - cryptodb
+    command: sqlx migrate run
+
+networks:
+  # Сеть соседнего проекта cryptodb (docker-compose.yml в ../cryptodb),
+  # где запущен контейнер cryptodb-postgres.
+  cryptodb:
+    external: true
+    name: cryptodb_default
+
+# Запуск миграций: docker compose run --rm --remove-orphans sqlxmigrator
+# Откат:           docker compose run --rm --remove-orphans sqlxmigrator sqlx migrate revert
